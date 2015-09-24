@@ -281,11 +281,12 @@ class Master(object):
             job_log = job[4]
             job_info = job[: -1]
 
+            last_selected = job_serial
+
             if self.ignore_error_if and job_log and self.ignore_error_if.match(job_log):
                 continue
 
             self.job_queue_buffer.append(job_info)
-            last_selected = job_serial
 
         if last_selected is not None:
             self.db_cursor.execute(
@@ -302,10 +303,12 @@ class Master(object):
         Fill buffer if buffer is clear.
         """
         for _ in range(self.job_queue_max_size - self.job_queue_size):
-            if not self.job_queue_buffer:
+            while not self.no_more_jobs and not self.job_queue_buffer:
                 self.load_job()
-                if not self.job_queue_buffer:
-                    break
+
+            if not self.job_queue_buffer:
+                break
+
             self.job_queue.put(self.job_queue_buffer.popleft())
             self.job_queue_size += 1
 
